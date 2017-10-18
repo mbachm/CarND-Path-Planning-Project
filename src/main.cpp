@@ -27,6 +27,10 @@ string hasData(string s) {
   return "";
 }
 
+static bool carIsInMyLane(float d, int lane) {
+  return d < (2+4*lane+2) && d > (2+4*lane -2);
+}
+
 int main() {
   uWS::Hub h;
   
@@ -68,7 +72,7 @@ int main() {
   int lane = 1;
   
   // reference velocity speed
-  static const double ref_vel = 49.5; //mph
+  static double ref_vel = 0.0; //mph
   
   h.onMessage([&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy, &lane](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
@@ -108,7 +112,52 @@ int main() {
           
           json msgJson;
           
-          //spline
+          int prev_size = previous_path_x.size();
+          if(prev_size > 0)
+          {
+            car_s = end_path_s;
+          }
+          
+          bool too_close = false;
+          //find ref_v to use
+          for (int i = 0; i < sensor_fusion.size(); i++)
+          {
+            //car in my lane
+            float d = sensor_fusion[i][6];
+            if(carIsInMyLane(d, lane))
+            {
+              double vx = sensor_fusion[i][3];
+              double vy = sensor_fusion[i][4];
+              double check_speed = sqrt(vx*vx+vy*vy);
+              double check_car_s = sensor_fusion[i][5];
+              
+              check_car_s+=((double)prev_size*0.02*check_speed); //if using previous points can project s value outwars in time
+              
+              //check s values greater than mine and smaller gap than 30 m
+              if (check_car_s > car_s && check_car_s-car_s < 30)
+              {
+                //Do some logic here, lower reference velocity so we dont crash into the car infront of us
+                //also flag to try change lanes
+                //ref_vel = 29.5;
+                //TODO:
+                too_close = true;
+                if(lane > 0)
+                {
+                  lane = 0;
+                }
+              }
+            }
+          }
+          
+          if (too_close)
+          {
+            ref_vel -= 0.224;
+          }
+          else if(ref_vel < 49.5)
+          {
+            ref_vel += 0.224;
+          }
+          
           // list of spaced (x,y) ponts, evenly spaced 30 m
           // will interpolate waypoints with spline
           vector<double> ptsx;
@@ -120,7 +169,6 @@ int main() {
           double ref_yaw = deg2rad(car_yaw);
           
           // if path is empty, use currenct location as starting reference
-          int prev_size = previous_path_x.size();
           if(prev_size < 2)
           {
             double prev_car_x = car_x - cos(car_yaw);

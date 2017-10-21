@@ -7,37 +7,42 @@
 
 #include "simplePredictionVehicle.h"
 
-SimplePredictionVehicle::SimplePredictionVehicle(int s, int d, int speed, int acceleration)
+SimplePredictionVehicle::SimplePredictionVehicle(int id, double s, double d, double speed)
 {
+  this->id = id;
   this->s = s;
   this->d = d;
   this->speed = speed;
-  this->acceleration = acceleration;
+  //Other car's in simulator seem to not change their lane
+  predict_current_lane();
 }
 
 SimplePredictionVehicle::~SimplePredictionVehicle() {}
 
-vector<int> SimplePredictionVehicle::state_at(int t)
+void SimplePredictionVehicle::predict_current_lane()
 {
-  /*
-   Predicts state of vehicle in t seconds (assuming constant acceleration)
-   */
-  int s = this->s + this->speed * t + this->acceleration * t * t / 2;
-  int v = this->speed + this->acceleration * t;
-  //TODO: check again
-  return {this->lane, s, v, this->acceleration};
+  if (d<4) {
+    this->lane = 0;
+  } else if (d < 8) {
+    this->lane = 1;
+  } else {
+    this->lane = 2;
+  }
 }
 
-vector<vector<int> > SimplePredictionVehicle::generate_predictions(int horizon = 50) {
+double SimplePredictionVehicle::s_position_at(double t)
+{
+  return this->s + this->speed * t;
+}
+
+vector<double> SimplePredictionVehicle::generate_predictions(int horizon = 50) {
   
-  vector<vector<int> > predictions;
+  vector<double> predictions;
   
   for( int i = 0; i < horizon; i++)
   {
-    vector<int> check1 = state_at(i*0.02);
-    vector<int> lane_s = {check1[0], check1[1]};
-    predictions.push_back(lane_s);
+    predictions.push_back(s_position_at(i * 0.02));
   }
-  return predictions;
   
+  return predictions;
 }

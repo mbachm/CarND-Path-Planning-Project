@@ -39,8 +39,6 @@ public:
   
   int lanes_available;
   
-  int max_acceleration;
-  
   int goal_lane;
   
   int goal_s;
@@ -50,7 +48,8 @@ public:
   /**
    * Constructor
    */
-  Vehicle(int lane, int s, int d, int speed, int acceleration);
+  Vehicle(int id, int lane);
+  Vehicle(int id, int lane, double s, double d, double speed);
   
   /**
    * Destructor
@@ -73,9 +72,6 @@ public:
   
   void realize_state(map<int, vector < vector<int> > > predictions);
   
-  void realize_constant_speed();
-  
-  int _max_accel_for_lane(map<int,vector<vector<int> > > predictions, int lane, int s);
   
   void realize_keep_lane(map<int, vector< vector<int> > > predictions);
   

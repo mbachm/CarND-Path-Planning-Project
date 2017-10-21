@@ -22,31 +22,30 @@ using namespace std;
 
 class SimplePredictionVehicle {
 private:
-  void predictOwnLane();
-  void predictOwnState();
+  void predict_current_lane();
   
 public:
   enum StateMachineState {KL, PLCL, PLCR, LCL, LCR};
+  int id;
   int lane;
-  int s;
-  int d;
-  int speed;
-  int acceleration;
+  double s;
+  double d;
+  double speed;
   StateMachineState predictedState;
   
   /**
    * Constructor
    */
-  SimplePredictionVehicle(int s, int d, int speed, int acceleration);
+  SimplePredictionVehicle(int id, double s, double d, double speed);
   
   /**
    * Destructor
    */
   virtual ~SimplePredictionVehicle();
   
-  vector<int> state_at(int t);
+  double s_position_at(double t);
   
-  vector<vector<int> > generate_predictions(int horizon);
+  vector<double> generate_predictions(int horizon);
 };
 
 #endif /* simplePredictionVehicle_h */

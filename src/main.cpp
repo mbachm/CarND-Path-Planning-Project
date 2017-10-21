@@ -6,6 +6,7 @@
 #include "json.hpp"
 #include "utils.h"
 #include "spline.h"
+#include "vehicle.h"
 
 using namespace std;
 
@@ -25,10 +26,6 @@ string hasData(string s) {
     return s.substr(b1, b2 - b1 + 2);
   }
   return "";
-}
-
-static bool carIsInMyLane(float d, int lane) {
-  return d < (2+4*lane+2) && d > (2+4*lane -2);
 }
 
 int main() {
@@ -74,6 +71,8 @@ int main() {
   // reference velocity speed
   static double ref_vel = 0.0; //mph
   
+  static Vehicle my_car = Vehicle(0, lane);
+  
   h.onMessage([&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy, &lane](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
@@ -100,6 +99,10 @@ int main() {
           double car_yaw = j[1]["yaw"];
           double car_speed = j[1]["speed"];
           
+          my_car.s = car_s;
+          my_car.d = car_d;
+          my_car.speed = car_speed;
+          
           // Previous path data given to the Planner
           auto previous_path_x = j[1]["previous_path_x"];
           auto previous_path_y = j[1]["previous_path_y"];
@@ -119,19 +122,28 @@ int main() {
           }
           
           bool too_close = false;
+          
+          vector<SimplePredictionVehicle> detected_vehicle;
           //find ref_v to use
           for (int i = 0; i < sensor_fusion.size(); i++)
           {
             //car in my lane
-            float d = sensor_fusion[i][6];
-            if(carIsInMyLane(d, lane))
+            double vx = sensor_fusion[i][3];
+            double vy = sensor_fusion[i][4];
+            double check_speed = sqrt(vx*vx+vy*vy);
+            SimplePredictionVehicle new_vehicle = SimplePredictionVehicle(sensor_fusion[i][0], sensor_fusion[i][5], sensor_fusion[i][6], check_speed);
+            vector<double> predictions = new_vehicle.generate_predictions(50);
+            
+            for (auto i = predictions.begin(); i != predictions.end(); ++i)
+              cout << *i << ' ';
+            cout << endl << endl;
+            
+            
+            if(lane == new_vehicle.lane)
             {
-              double vx = sensor_fusion[i][3];
-              double vy = sensor_fusion[i][4];
-              double check_speed = sqrt(vx*vx+vy*vy);
-              double check_car_s = sensor_fusion[i][5];
+              double check_car_s = new_vehicle.s;
               
-              check_car_s+=((double)prev_size*0.02*check_speed); //if using previous points can project s value outwars in time
+              check_car_s+=((double)prev_size*0.02*check_speed); //if using previous points can project s value outwards in time
               
               //check s values greater than mine and smaller gap than 30 m
               if (check_car_s > car_s && check_car_s-car_s < 30)

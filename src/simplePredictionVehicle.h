@@ -43,6 +43,11 @@ public:
    */
   virtual ~SimplePredictionVehicle();
   
+  static bool sort_by_s_distance(const SimplePredictionVehicle &a, const SimplePredictionVehicle &b)
+  {
+    return a.s < b.s;
+  };
+  
   double s_position_at(double t);
   
   vector<double> generate_predictions(int horizon);

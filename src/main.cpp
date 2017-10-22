@@ -70,7 +70,9 @@ int main() {
   
   // reference velocity speed
   static double ref_vel = 0.0; //mph
-  
+  static double max_speed = 49.5; //mph
+  static double targed_speed = max_speed; // mph
+  //own vehicle
   static Vehicle my_car = Vehicle(0, lane);
   
   h.onMessage([&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy, &lane](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, uWS::OpCode opCode) {
@@ -94,14 +96,11 @@ int main() {
           // Main car's localization Data
           double car_x = j[1]["x"];
           double car_y = j[1]["y"];
-          double car_s = j[1]["s"];
-          double car_d = j[1]["d"];
           double car_yaw = j[1]["yaw"];
-          double car_speed = j[1]["speed"];
           
-          my_car.s = car_s;
-          my_car.d = car_d;
-          my_car.speed = car_speed;
+          my_car.s = j[1]["s"];;
+          my_car.d = j[1]["d"];
+          my_car.speed = j[1]["speed"];
           
           // Previous path data given to the Planner
           auto previous_path_x = j[1]["previous_path_x"];
@@ -118,15 +117,29 @@ int main() {
           int prev_size = previous_path_x.size();
           if(prev_size > 0)
           {
-            car_s = end_path_s;
+            my_car.s = end_path_s;
           }
           
+          vector<SimplePredictionVehicle> lane_0_detected_vehicles;
+          vector<SimplePredictionVehicle> lane_1_detected_vehicles;
+          vector<SimplePredictionVehicle> lane_2_detected_vehicles;
           bool too_close = false;
-          
-          vector<SimplePredictionVehicle> detected_vehicle;
           //find ref_v to use
           for (int i = 0; i < sensor_fusion.size(); i++)
           {
+            double d = sensor_fusion[i][6];
+            if (d < 0.0)
+            {
+              //ignore vehiclse on other side of road
+              continue;
+            }
+//            int id = sensor_fusion[i][0];
+//            double x = sensor_fusion[i][1];
+//            double y = sensor_fusion[i][2];
+//            double cvx = sensor_fusion[i][3];
+//            double cvy = sensor_fusion[i][4];
+//            double s = sensor_fusion[i][5];
+            
             //car in my lane
             double vx = sensor_fusion[i][3];
             double vy = sensor_fusion[i][4];
@@ -134,39 +147,76 @@ int main() {
             SimplePredictionVehicle new_vehicle = SimplePredictionVehicle(sensor_fusion[i][0], sensor_fusion[i][5], sensor_fusion[i][6], check_speed);
             vector<double> predictions = new_vehicle.generate_predictions(50);
             
-            for (auto i = predictions.begin(); i != predictions.end(); ++i)
-              cout << *i << ' ';
-            cout << endl << endl;
+            //debug
+//            for (auto i = predictions.begin(); i != predictions.end(); ++i)
+//              cout << *i << ' ';
+//            cout << endl << endl;
             
+            if (new_vehicle.lane == 0)
+            {
+              lane_0_detected_vehicles.push_back(new_vehicle);
+            }
+            else if (new_vehicle.lane == 1)
+            {
+              lane_1_detected_vehicles.push_back(new_vehicle);
+            }
+            else if (new_vehicle.lane == 2)
+            {
+              lane_2_detected_vehicles.push_back(new_vehicle);
+            }
             
             if(lane == new_vehicle.lane)
             {
-              double check_car_s = new_vehicle.s;
+              double vx = sensor_fusion[i][3];
+              double vy = sensor_fusion[i][4];
+              double check_speed = sqrt(vx*vx+vy*vy);
+              double check_car_s = sensor_fusion[i][5];
               
-              check_car_s+=((double)prev_size*0.02*check_speed); //if using previous points can project s value outwards in time
+              check_car_s+=((double)prev_size*0.02*check_speed); //if using previous points can project s value outwars in time
               
               //check s values greater than mine and smaller gap than 30 m
-              if (check_car_s > car_s && check_car_s-car_s < 30)
+              if (check_car_s > my_car.s && check_car_s-my_car.s < 30)
               {
-                //Do some logic here, lower reference velocity so we dont crash into the car infront of us
-                //also flag to try change lanes
-                //ref_vel = 29.5;
-                //TODO:
                 too_close = true;
-                if(lane > 0)
-                {
-                  lane = 0;
-                }
               }
             }
           }
           
-          if (too_close)
+          sort(lane_0_detected_vehicles.begin(), lane_0_detected_vehicles.end(), SimplePredictionVehicle::sort_by_s_distance);
+          sort(lane_1_detected_vehicles.begin(), lane_1_detected_vehicles.end(), SimplePredictionVehicle::sort_by_s_distance);
+          sort(lane_2_detected_vehicles.begin(), lane_2_detected_vehicles.end(), SimplePredictionVehicle::sort_by_s_distance);
+          if (lane == 0 && lane_0_detected_vehicles.size() > 0 && too_close)
           {
-            ref_vel -= 0.224;
+//            cout << "reducing speed due to lane 0" << endl << endl;
+            targed_speed = lane_0_detected_vehicles.at(0).speed;
           }
-          else if(ref_vel < 49.5)
+          else if (lane == 1 && lane_1_detected_vehicles.size() > 0 && too_close)
           {
+//            cout << "reducing speed due to lane 1" << endl << endl;
+            targed_speed = lane_1_detected_vehicles.at(0).speed;
+          }
+          else if (lane_2_detected_vehicles.size() > 0 && too_close)
+          {
+//            cout << "reducing speed due to lane 2" << endl << endl;
+            targed_speed = lane_2_detected_vehicles.at(0).speed;
+          } else
+          {
+//            cout << "set target speed to max speed" << endl << endl;
+            targed_speed = max_speed;
+          }
+            
+          
+          if (ref_vel > targed_speed)
+          {
+//            cout << "reducing speed" << endl << endl;
+            ref_vel -= 0.112;
+            if ((ref_vel - targed_speed) < 0.112) {
+              ref_vel = targed_speed;
+            }
+          }
+          else if(ref_vel != targed_speed && ref_vel < max_speed)
+          {
+//            cout << "add speed" << endl << endl;
             ref_vel += 0.224;
           }
           
@@ -209,9 +259,9 @@ int main() {
           }
           
           // Calculate the x,y waypoints for left, middel and right lane
-          vector<double> next_wp0 = getXY(car_s+30, (2+4*lane),map_waypoints_s, map_waypoints_x, map_waypoints_y);
-          vector<double> next_wp1 = getXY(car_s+60, (2+4*lane),map_waypoints_s, map_waypoints_x, map_waypoints_y);
-          vector<double> next_wp2 = getXY(car_s+90, (2+8*lane),map_waypoints_s, map_waypoints_x, map_waypoints_y);
+          vector<double> next_wp0 = getXY(my_car.s+30, (2+4*lane),map_waypoints_s, map_waypoints_x, map_waypoints_y);
+          vector<double> next_wp1 = getXY(my_car.s+60, (2+4*lane),map_waypoints_s, map_waypoints_x, map_waypoints_y);
+          vector<double> next_wp2 = getXY(my_car.s+90, (2+8*lane),map_waypoints_s, map_waypoints_x, map_waypoints_y);
           
           ptsx.push_back(next_wp0[0]);
           ptsx.push_back(next_wp1[0]);

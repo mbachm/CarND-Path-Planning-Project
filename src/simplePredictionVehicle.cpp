@@ -6,6 +6,7 @@
 //
 
 #include "simplePredictionVehicle.h"
+#include "utils.h"
 
 SimplePredictionVehicle::SimplePredictionVehicle(int id, double s, double d, double speed)
 {
@@ -13,7 +14,7 @@ SimplePredictionVehicle::SimplePredictionVehicle(int id, double s, double d, dou
   this->s = s;
   this->d = d;
   this->speed = speed;
-  //Other car's in simulator seem to not change their lane
+  
   predict_current_lane();
 }
 
@@ -35,14 +36,38 @@ double SimplePredictionVehicle::s_position_at(double t)
   return this->s + this->speed * t;
 }
 
-vector<double> SimplePredictionVehicle::generate_predictions(int horizon = 50) {
+vector<double> SimplePredictionVehicle::generate_predictions(int horizon = 50)
+{
   
   vector<double> predictions;
   
-  for( int i = 0; i < horizon; i++)
+  for(int i = 0; i < horizon; i++)
   {
     predictions.push_back(s_position_at(i * 0.02));
   }
   
   return predictions;
+}
+
+void SimplePredictionVehicle::predict_current_state(double x, double y, double vx, double vy, double car_yaw, const vector<double> &map_waypoints_x, const vector<double> &map_waypoints_y)
+{
+  vector<double> frenetOld = getFrenet(x, y, car_yaw, map_waypoints_x, map_waypoints_y);
+  //Predict 20 timesteps into the future
+  double c = 20 * 0.02;
+  double futureX = x + c * vx;
+  double futureY = y + c * vy;
+  vector<double> frenetNew = getFrenet(futureX, futureY, car_yaw, map_waypoints_x, map_waypoints_y);
+  double d_change = frenetOld[1] - frenetNew[1];
+  if (d_change > 1)
+  {
+    this->predictedState = LCR;
+  } else if (d_change < -1)
+  {
+    this->predictedState = LCL;
+  } else
+  {
+    this->predictedState = KL;
+  }
+//  Debug
+//  std::cout << "State for vehicle with id: "<< this->id << ", state: "<<this->predictedState << std::endl << std::endl;
 }

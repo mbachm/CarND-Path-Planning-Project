@@ -51,6 +51,8 @@ public:
   double s_position_at(double t);
   
   vector<double> generate_predictions(int horizon);
+  
+  void predict_current_state(double x, double y, double vx, double vy, double car_yaw, const vector<double> &map_waypoints_x, const vector<double> &map_waypoints_y);
 };
 
 #endif /* simplePredictionVehicle_h */

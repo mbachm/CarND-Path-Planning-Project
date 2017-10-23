@@ -28,6 +28,57 @@ string hasData(string s) {
   return "";
 }
 
+static void getSpeedOfNearestCarInFront(vector<SimplePredictionVehicle> &detected_vehicles, const Vehicle &my_car, double &targed_speed) {
+  for (SimplePredictionVehicle vehicle : detected_vehicles) {
+    if (vehicle.s > my_car.s)
+    {
+      targed_speed = vehicle.speed;
+      break;
+    }
+  }
+}
+
+static void calculateTargetSpeed(int lane, vector<vector<SimplePredictionVehicle>> &cars_in_lanes, double max_speed, double &targed_speed, bool too_close, Vehicle my_car) {
+  if (lane == 0 && cars_in_lanes[0].size() > 0 && too_close)
+  {
+    //            cout << "reducing speed due to lane 0" << endl << endl;
+    sort(cars_in_lanes[0].begin(), cars_in_lanes[0].end(), SimplePredictionVehicle::sort_by_s_distance);
+    getSpeedOfNearestCarInFront(cars_in_lanes[0], my_car, targed_speed);
+  }
+  else if (lane == 1 && cars_in_lanes[1].size() > 0 && too_close)
+  {
+    //            cout << "reducing speed due to lane 1" << endl << endl;
+    sort(cars_in_lanes[1].begin(), cars_in_lanes[1].end(), SimplePredictionVehicle::sort_by_s_distance);
+    getSpeedOfNearestCarInFront(cars_in_lanes[1], my_car, targed_speed);
+  }
+  else if (cars_in_lanes[2].size() > 0 && too_close)
+  {
+    //            cout << "reducing speed due to lane 2" << endl << endl;
+    sort(cars_in_lanes[2].begin(), cars_in_lanes[2].end(), SimplePredictionVehicle::sort_by_s_distance);
+    getSpeedOfNearestCarInFront(cars_in_lanes[2], my_car, targed_speed);
+  } else
+  {
+    //            cout << "set target speed to max speed" << endl << endl;
+    targed_speed = max_speed;
+  }
+}
+
+static void adjustSpeedWithoutJerk(double max_speed, double &ref_vel, double targed_speed) {
+  if (ref_vel > targed_speed)
+  {
+    //            cout << "reducing speed" << endl << endl;
+    ref_vel -= 0.112;
+    if ((ref_vel - targed_speed) < 0.112) {
+      ref_vel = targed_speed;
+    }
+  }
+  else if(ref_vel != targed_speed && ref_vel < max_speed)
+  {
+    //            cout << "add speed" << endl << endl;
+    ref_vel += 0.224;
+  }
+}
+
 int main() {
   uWS::Hub h;
   
@@ -73,7 +124,7 @@ int main() {
   static double max_speed = 49.5; //mph
   static double targed_speed = max_speed; // mph
   //own vehicle
-  static Vehicle my_car = Vehicle(0, lane);
+  static Vehicle my_car = Vehicle(-1, lane);
   
   h.onMessage([&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy, &lane](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
@@ -127,24 +178,21 @@ int main() {
           //find ref_v to use
           for (int i = 0; i < sensor_fusion.size(); i++)
           {
+            double s = sensor_fusion[i][5];
             double d = sensor_fusion[i][6];
-            if (d < 0.0)
+            if ((d < 0.0) && !(-20.0 < s - my_car.s < 100.0))
             {
-              //ignore vehiclse on other side of road
+              //ignore vehicles on other side of road and vehicle that are too far behind/away
               continue;
             }
-//            int id = sensor_fusion[i][0];
-//            double x = sensor_fusion[i][1];
-//            double y = sensor_fusion[i][2];
-//            double cvx = sensor_fusion[i][3];
-//            double cvy = sensor_fusion[i][4];
-//            double s = sensor_fusion[i][5];
-            
-            //car in my lane
+            int id = sensor_fusion[i][0];
+            double x = sensor_fusion[i][1];
+            double y = sensor_fusion[i][2];
             double vx = sensor_fusion[i][3];
             double vy = sensor_fusion[i][4];
             double check_speed = sqrt(vx*vx+vy*vy);
-            SimplePredictionVehicle new_vehicle = SimplePredictionVehicle(sensor_fusion[i][0], sensor_fusion[i][5], sensor_fusion[i][6], check_speed);
+            SimplePredictionVehicle new_vehicle = SimplePredictionVehicle(id, s, d, check_speed);
+            new_vehicle.predict_current_state(x, y, vx, vy, car_yaw, map_waypoints_x, map_waypoints_y);
             vector<double> predictions = new_vehicle.generate_predictions(50);
             
             //debug
@@ -170,55 +218,20 @@ int main() {
               double vx = sensor_fusion[i][3];
               double vy = sensor_fusion[i][4];
               double check_speed = sqrt(vx*vx+vy*vy);
-              double check_car_s = sensor_fusion[i][5];
               
-              check_car_s+=((double)prev_size*0.02*check_speed); //if using previous points can project s value outwars in time
+              s+=((double)prev_size*0.02*check_speed); //if using previous points can project s value outwars in time
               
               //check s values greater than mine and smaller gap than 30 m
-              if (check_car_s > my_car.s && check_car_s-my_car.s < 30)
+              if (s > my_car.s && s-my_car.s < 30)
               {
                 too_close = true;
               }
             }
           }
           
-          sort(lane_0_detected_vehicles.begin(), lane_0_detected_vehicles.end(), SimplePredictionVehicle::sort_by_s_distance);
-          sort(lane_1_detected_vehicles.begin(), lane_1_detected_vehicles.end(), SimplePredictionVehicle::sort_by_s_distance);
-          sort(lane_2_detected_vehicles.begin(), lane_2_detected_vehicles.end(), SimplePredictionVehicle::sort_by_s_distance);
-          if (lane == 0 && lane_0_detected_vehicles.size() > 0 && too_close)
-          {
-//            cout << "reducing speed due to lane 0" << endl << endl;
-            targed_speed = lane_0_detected_vehicles.at(0).speed;
-          }
-          else if (lane == 1 && lane_1_detected_vehicles.size() > 0 && too_close)
-          {
-//            cout << "reducing speed due to lane 1" << endl << endl;
-            targed_speed = lane_1_detected_vehicles.at(0).speed;
-          }
-          else if (lane_2_detected_vehicles.size() > 0 && too_close)
-          {
-//            cout << "reducing speed due to lane 2" << endl << endl;
-            targed_speed = lane_2_detected_vehicles.at(0).speed;
-          } else
-          {
-//            cout << "set target speed to max speed" << endl << endl;
-            targed_speed = max_speed;
-          }
-            
-          
-          if (ref_vel > targed_speed)
-          {
-//            cout << "reducing speed" << endl << endl;
-            ref_vel -= 0.112;
-            if ((ref_vel - targed_speed) < 0.112) {
-              ref_vel = targed_speed;
-            }
-          }
-          else if(ref_vel != targed_speed && ref_vel < max_speed)
-          {
-//            cout << "add speed" << endl << endl;
-            ref_vel += 0.224;
-          }
+          vector<vector<SimplePredictionVehicle>> vehicles = {lane_0_detected_vehicles, lane_1_detected_vehicles, lane_2_detected_vehicles};
+          calculateTargetSpeed(lane, vehicles, max_speed, targed_speed, too_close, my_car);
+          adjustSpeedWithoutJerk(max_speed, ref_vel, targed_speed);
           
           // list of spaced (x,y) ponts, evenly spaced 30 m
           // will interpolate waypoints with spline

@@ -28,57 +28,6 @@ string hasData(string s) {
   return "";
 }
 
-static void getSpeedOfNearestCarInFront(vector<SimplePredictionVehicle> &detected_vehicles, const Vehicle &my_car, double &targed_speed) {
-  for (SimplePredictionVehicle vehicle : detected_vehicles) {
-    if (vehicle.s > my_car.s)
-    {
-      targed_speed = vehicle.speed;
-      break;
-    }
-  }
-}
-
-static void calculateTargetSpeed(int lane, vector<vector<SimplePredictionVehicle>> &cars_in_lanes, double max_speed, double &targed_speed, bool too_close, Vehicle my_car) {
-  if (lane == 0 && cars_in_lanes[0].size() > 0 && too_close)
-  {
-    //            cout << "reducing speed due to lane 0" << endl << endl;
-    sort(cars_in_lanes[0].begin(), cars_in_lanes[0].end(), SimplePredictionVehicle::sort_by_s_distance);
-    getSpeedOfNearestCarInFront(cars_in_lanes[0], my_car, targed_speed);
-  }
-  else if (lane == 1 && cars_in_lanes[1].size() > 0 && too_close)
-  {
-    //            cout << "reducing speed due to lane 1" << endl << endl;
-    sort(cars_in_lanes[1].begin(), cars_in_lanes[1].end(), SimplePredictionVehicle::sort_by_s_distance);
-    getSpeedOfNearestCarInFront(cars_in_lanes[1], my_car, targed_speed);
-  }
-  else if (cars_in_lanes[2].size() > 0 && too_close)
-  {
-    //            cout << "reducing speed due to lane 2" << endl << endl;
-    sort(cars_in_lanes[2].begin(), cars_in_lanes[2].end(), SimplePredictionVehicle::sort_by_s_distance);
-    getSpeedOfNearestCarInFront(cars_in_lanes[2], my_car, targed_speed);
-  } else
-  {
-    //            cout << "set target speed to max speed" << endl << endl;
-    targed_speed = max_speed;
-  }
-}
-
-static void adjustSpeedWithoutJerk(double max_speed, double &ref_vel, double targed_speed) {
-  if (ref_vel > targed_speed)
-  {
-    //            cout << "reducing speed" << endl << endl;
-    ref_vel -= 0.112;
-    if ((ref_vel - targed_speed) < 0.112) {
-      ref_vel = targed_speed;
-    }
-  }
-  else if(ref_vel != targed_speed && ref_vel < max_speed)
-  {
-    //            cout << "add speed" << endl << endl;
-    ref_vel += 0.224;
-  }
-}
-
 int main() {
   uWS::Hub h;
   
@@ -116,17 +65,10 @@ int main() {
     map_waypoints_dy.push_back(d_y);
   }
   
-  //start lane
-  int lane = 1;
-  
-  // reference velocity speed
-  static double ref_vel = 0.0; //mph
-  static double max_speed = 49.5; //mph
-  static double targed_speed = max_speed; // mph
   //own vehicle
-  static Vehicle my_car = Vehicle(-1, lane);
+  static Vehicle my_car = Vehicle(-1, 1);
   
-  h.onMessage([&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy, &lane](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, uWS::OpCode opCode) {
+  h.onMessage([&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
     // The 2 signifies a websocket event
@@ -213,7 +155,7 @@ int main() {
               lane_2_detected_vehicles.push_back(new_vehicle);
             }
             
-            if(lane == new_vehicle.lane)
+            if(my_car.lane == new_vehicle.lane)
             {
               double vx = sensor_fusion[i][3];
               double vy = sensor_fusion[i][4];
@@ -230,8 +172,8 @@ int main() {
           }
           
           vector<vector<SimplePredictionVehicle>> vehicles = {lane_0_detected_vehicles, lane_1_detected_vehicles, lane_2_detected_vehicles};
-          calculateTargetSpeed(lane, vehicles, max_speed, targed_speed, too_close, my_car);
-          adjustSpeedWithoutJerk(max_speed, ref_vel, targed_speed);
+          my_car.update_state(vehicles, too_close);
+
           
           // list of spaced (x,y) ponts, evenly spaced 30 m
           // will interpolate waypoints with spline
@@ -272,9 +214,9 @@ int main() {
           }
           
           // Calculate the x,y waypoints for left, middel and right lane
-          vector<double> next_wp0 = getXY(my_car.s+30, (2+4*lane),map_waypoints_s, map_waypoints_x, map_waypoints_y);
-          vector<double> next_wp1 = getXY(my_car.s+60, (2+4*lane),map_waypoints_s, map_waypoints_x, map_waypoints_y);
-          vector<double> next_wp2 = getXY(my_car.s+90, (2+8*lane),map_waypoints_s, map_waypoints_x, map_waypoints_y);
+          vector<double> next_wp0 = getXY(my_car.s+30, (2+4*my_car.lane),map_waypoints_s, map_waypoints_x, map_waypoints_y);
+          vector<double> next_wp1 = getXY(my_car.s+60, (2+4*my_car.lane),map_waypoints_s, map_waypoints_x, map_waypoints_y);
+          vector<double> next_wp2 = getXY(my_car.s+90, (2+8*my_car.lane),map_waypoints_s, map_waypoints_x, map_waypoints_y);
           
           ptsx.push_back(next_wp0[0]);
           ptsx.push_back(next_wp1[0]);
@@ -321,7 +263,7 @@ int main() {
           //fill up the rest of our path planner
           for (int i = 1; i <= 50-prev_size; i++)
           {
-            double N = (target_dist/(0.02*ref_vel/2.24));
+            double N = (target_dist/(0.02*my_car.target_speed/2.24));
             double x_point = x_add_on+(target_x)/N;
             double y_point = s(x_point);
             

@@ -36,7 +36,7 @@ double SimplePredictionVehicle::s_position_at(double t)
   return this->s + this->speed * t;
 }
 
-vector<double> SimplePredictionVehicle::generate_predictions(int horizon = 50)
+vector<double> SimplePredictionVehicle::generate_predictions(int horizon)
 {
   
   vector<double> predictions;

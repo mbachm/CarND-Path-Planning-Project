@@ -24,8 +24,14 @@ using namespace std;
 class Vehicle: public SimplePredictionVehicle{
 private:
   static constexpr double _max_speed = 49.5; //mph
+  bool _too_close;
+  struct collider{
+    bool collision ; // is there a collision?
+    int  time; // time collision happens
+  };
   
   static void getSpeedOfNearestCarInFront(vector<SimplePredictionVehicle> &detected_vehicles, const double s, double &target_speed) {
+    sort(detected_vehicles.begin(), detected_vehicles.end(), SimplePredictionVehicle::sort_by_s_distance);
     for (SimplePredictionVehicle vehicle : detected_vehicles) {
       if (s < vehicle.s)
       {
@@ -39,19 +45,16 @@ private:
     if (lane == 0 && cars_in_lanes[0].size() > 0 && too_close)
     {
       //            cout << "reducing speed due to lane 0" << endl << endl;
-      sort(cars_in_lanes[0].begin(), cars_in_lanes[0].end(), SimplePredictionVehicle::sort_by_s_distance);
       getSpeedOfNearestCarInFront(cars_in_lanes[0], s, target_speed);
     }
     else if (lane == 1 && cars_in_lanes[1].size() > 0 && too_close)
     {
       //            cout << "reducing speed due to lane 1" << endl << endl;
-      sort(cars_in_lanes[1].begin(), cars_in_lanes[1].end(), SimplePredictionVehicle::sort_by_s_distance);
       getSpeedOfNearestCarInFront(cars_in_lanes[1], s, target_speed);
     }
     else if (cars_in_lanes[2].size() > 0 && too_close)
     {
       //            cout << "reducing speed due to lane 2" << endl << endl;
-      sort(cars_in_lanes[2].begin(), cars_in_lanes[2].end(), SimplePredictionVehicle::sort_by_s_distance);
       getSpeedOfNearestCarInFront(cars_in_lanes[2], s, target_speed);
     } else
     {
@@ -63,7 +66,6 @@ private:
   static void adjustSpeedWithoutJerk(double &ref_speed, const double target_speed) {
     if (ref_speed > target_speed)
     {
-      //            cout << "reducing speed" << endl << endl;
       ref_speed -= 0.112;
       if ((ref_speed - target_speed) < 0.112) {
         ref_speed = target_speed;
@@ -71,38 +73,41 @@ private:
     }
     else if(ref_speed != target_speed && ref_speed < _max_speed)
     {
-      //            cout << "add speed" << endl << endl;
       ref_speed += 0.224;
     }
   }
   
+  vector<vector<SimplePredictionVehicle>> categorize_vehicles_into_lanes(vector<vector<double>> sensor_fusion, const int prev_size);
+  vector<vector<double>> calculate_path_depending_on_state(const int prev_size, vector<double> previous_path_x, vector<double> previous_path_y);
+  void update_state(vector<vector<SimplePredictionVehicle>> vehiclePredictions, const bool too_close);
+  bool collides_with(SimplePredictionVehicle other, int at_time);
+  collider will_collide_with(SimplePredictionVehicle other, int timesteps);
+  void realize_state(vector<vector<SimplePredictionVehicle>> vehiclePredictions, bool too_close);
+  void realize_keep_lane(vector<vector<SimplePredictionVehicle>> predictions, bool too_close);
+  void realize_lane_change(vector<vector<SimplePredictionVehicle>> predictions, StateMachineState direction);
+  
 public:
   
-  struct collider{
-    
-    bool collision ; // is there a collision?
-    int  time; // time collision happens
-    
-  };
-  
-  int L = 1;
-  
-  int preferred_buffer = 6; // impacts "keep lane" behavior.
-  
-  double target_speed;
-  
-  int lanes_available;
-  
-  int goal_lane;
-  
-  int goal_s;
-  
+  double x;
+  double y;
+  double yaw;
+  vector<double> map_waypoints_x;
+  vector<double> map_waypoints_y;
+  vector<double> map_waypoints_s;
+  vector<double> map_waypoints_dx;
+  vector<double> map_waypoints_dy;
   StateMachineState state;
   
+  double target_speed;
+  int goal_lane;
+  int goal_s;
+  
+  
   /**
-   * Constructor
+   * Constructors
    */
   Vehicle(int id, int lane);
+  Vehicle(int id, int lane, vector<vector<double>> waypoints);
   Vehicle(int id, int lane, double s, double d, double speed);
   
   /**
@@ -110,23 +115,11 @@ public:
    */
   virtual ~Vehicle();
   
-  vector<StateMachineState> predict_successor_states(StateMachineState currentState);
+  /**
+   *
+   */
+  vector<vector<double>> plan_path(vector<vector<double>> sensor_fusion, vector<double> previous_path_x, vector<double> previous_path_y, double end_path_s, double end_path_d);
   
-  void update_state(vector<vector<SimplePredictionVehicle>> vehiclePredictions, const bool too_close);
-  
-  void increment(int dt);
-  
-  bool collides_with(Vehicle other, int at_time);
-  
-  collider will_collide_with(Vehicle other, int timesteps);
-  
-  void realize_state(vector<vector<SimplePredictionVehicle>> vehiclePredictions, bool too_close);
-  
-  void realize_keep_lane(vector<vector<SimplePredictionVehicle>> predictions, bool too_close);
-  
-  void realize_lane_change(vector<vector<SimplePredictionVehicle>> predictions, StateMachineState direction);
-  
-  void realize_prep_lane_change(vector<vector<SimplePredictionVehicle>> predictions, StateMachineState direction);
 };
 
 #endif /* vehicle_h */

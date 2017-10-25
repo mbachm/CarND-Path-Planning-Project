@@ -25,7 +25,7 @@ private:
   void predict_current_lane();
   
 public:
-  enum StateMachineState {KL, PLCL, PLCR, LCL, LCR};
+  enum StateMachineState {KL, LCL, LCR};
   int id;
   int lane;
   double s;

@@ -133,5 +133,31 @@ vector<double> getXY(double s, double d, const vector<double> &maps_s, const vec
   double y = seg_y + d*sin(perp_heading);
   
   return {x,y};
+}
+
+vector<SimplePredictionVehicle::StateMachineState> predict_successor_states(SimplePredictionVehicle::StateMachineState currentState, const int lane)
+{
+  vector<SimplePredictionVehicle::StateMachineState> states;
   
+  switch (currentState) {
+    case SimplePredictionVehicle::KL:
+      states.push_back(SimplePredictionVehicle::KL);
+      if (lane != 0)
+      {
+        states.push_back(SimplePredictionVehicle::LCL);
+      }
+      if (lane != 2)
+      {
+        states.push_back(SimplePredictionVehicle::LCR);
+      }
+      break;
+    case SimplePredictionVehicle::LCL:
+      states.push_back(SimplePredictionVehicle::LCL);
+      states.push_back(SimplePredictionVehicle::KL);
+      break;
+    case SimplePredictionVehicle::LCR:
+      states.push_back(SimplePredictionVehicle::LCR);
+      states.push_back(SimplePredictionVehicle::KL);
+  }
+  return states;
 }

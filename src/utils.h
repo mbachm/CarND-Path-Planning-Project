@@ -21,6 +21,20 @@ constexpr double pi();
 double deg2rad(double x);
 double rad2deg(double x);
 
+static int calculate_lane_after_state_change(SimplePredictionVehicle::StateMachineState direction, const int lane)
+{
+  int delta = 0;
+  if (direction == SimplePredictionVehicle::LCL && lane > 0)
+  {
+    delta = -1;
+  } else if (direction == SimplePredictionVehicle::LCR && lane < 2)
+  {
+    delta = 1;
+  }
+//  cout << "calculate delta: " << delta << ", target lane: " << lane + delta << endl;
+  return lane + delta;
+}
+
 double distance(double x1, double y1, double x2, double y2);
 
 int ClosestWaypoint(double x, double y, const vector<double> &maps_x, const vector<double> &maps_y);
@@ -31,6 +45,8 @@ vector<double> getFrenet(double x, double y, double theta, const vector<double> 
 
 vector<double> getXY(double s, double d, const vector<double> &maps_s, const vector<double> &maps_x, const vector<double> &maps_y);
 
-vector<SimplePredictionVehicle::StateMachineState> predict_successor_states(SimplePredictionVehicle::StateMachineState currentState);
+vector<SimplePredictionVehicle::StateMachineState> predict_successor_states(SimplePredictionVehicle::StateMachineState currentState, const int lane);
+
+bool will_collide(vector<vector<double>> path_for_test_v, SimplePredictionVehicle second_vehicle, const vector<double> &maps_s, const vector<double> &maps_x, const vector<double> &maps_y);
 
 #endif /* utils_h */

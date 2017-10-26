@@ -25,11 +25,7 @@ class Vehicle: public SimplePredictionVehicle{
 private:
   static constexpr double _max_speed = 49.5; //mph
   bool _too_close;
-  struct collider{
-    bool collision ; // is there a collision?
-    int  time; // time collision happens
-  };
-  
+
   static void getSpeedOfNearestCarInFront(vector<SimplePredictionVehicle> &detected_vehicles, const double s, double &target_speed) {
     sort(detected_vehicles.begin(), detected_vehicles.end(), SimplePredictionVehicle::sort_by_s_distance);
     for (SimplePredictionVehicle vehicle : detected_vehicles) {
@@ -79,9 +75,7 @@ private:
   
   vector<vector<SimplePredictionVehicle>> categorize_vehicles_into_lanes(vector<vector<double>> sensor_fusion, const int prev_size);
   vector<vector<double>> calculate_path_depending_on_state(const int prev_size, vector<double> previous_path_x, vector<double> previous_path_y);
-  void update_state(vector<vector<SimplePredictionVehicle>> vehiclePredictions, const bool too_close);
-  bool collides_with(SimplePredictionVehicle other, int at_time);
-  collider will_collide_with(SimplePredictionVehicle other, int timesteps);
+  void update_state(vector<vector<SimplePredictionVehicle>> vehiclePredictions, const bool too_close, vector<double> previous_path_x, vector<double> previous_path_y);
   void realize_state(vector<vector<SimplePredictionVehicle>> vehiclePredictions, bool too_close);
   void realize_keep_lane(vector<vector<SimplePredictionVehicle>> predictions, bool too_close);
   void realize_lane_change(vector<vector<SimplePredictionVehicle>> predictions, StateMachineState direction);
@@ -108,12 +102,14 @@ public:
    */
   Vehicle(int id, int lane);
   Vehicle(int id, int lane, vector<vector<double>> waypoints);
-  Vehicle(int id, int lane, double s, double d, double speed);
-  
+  Vehicle(int id, int lane, double s, double d, double speed, vector<vector<double>> waypoints);
   /**
    * Destructor
    */
   virtual ~Vehicle();
+  
+  Vehicle copy_vehicle_with(SimplePredictionVehicle::StateMachineState new_state);
+
   
   /**
    *

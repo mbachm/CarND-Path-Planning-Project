@@ -36,7 +36,7 @@ Vehicle::Vehicle(int id, int lane, vector<vector<double>> waypoints) : Vehicle(i
   this->map_waypoints_dy = waypoints[4];
 }
 
-Vehicle::Vehicle(int id, int lane, double s, double d, double speed) : Vehicle(id, lane)
+Vehicle::Vehicle(int id, int lane, double s, double d, double speed, vector<vector<double>> waypoints) : Vehicle(id, lane, waypoints)
 {
   this->s = s;
   this->d = d;
@@ -46,6 +46,16 @@ Vehicle::Vehicle(int id, int lane, double s, double d, double speed) : Vehicle(i
 }
 
 Vehicle::~Vehicle() {}
+
+Vehicle Vehicle::copy_vehicle_with(SimplePredictionVehicle::StateMachineState new_state)
+{
+  vector<vector<double>> waypoints = {this->map_waypoints_x, this->map_waypoints_y, this->map_waypoints_s, this->map_waypoints_dx, this->map_waypoints_dy};
+  Vehicle copy_vehicle = Vehicle(this-> id, calculate_lane_after_state_change(new_state, this->lane), this->s, this->d, this->speed, waypoints);
+  copy_vehicle.x = this->x;
+  copy_vehicle.y = this->y;
+  copy_vehicle.yaw = this->yaw;
+  return copy_vehicle;
+}
 
 vector<vector<SimplePredictionVehicle>> Vehicle::categorize_vehicles_into_lanes(vector<vector<double>> sensor_fusion, const int prev_size)
 {
@@ -71,7 +81,7 @@ vector<vector<SimplePredictionVehicle>> Vehicle::categorize_vehicles_into_lanes(
     double check_speed = sqrt(vx*vx+vy*vy);
     SimplePredictionVehicle new_vehicle = SimplePredictionVehicle(id, s, d, check_speed);
     new_vehicle.predict_current_state(x, y, vx, vy, this->yaw, map_waypoints_x, map_waypoints_y);
-    vector<double> predictions = new_vehicle.generate_predictions(50);
+    vector<double> predictions = new_vehicle.generate_predictions();
     
     if (new_vehicle.lane == 0)
     {
@@ -217,21 +227,26 @@ vector<vector<double>> Vehicle::calculate_path_depending_on_state(const int prev
   return {next_x_vals, next_y_vals};
 }
 
-void Vehicle::update_state(vector<vector<SimplePredictionVehicle>> vehiclePredictions, const bool too_close) {
-  /*
-   
-   */
-  /*
+void Vehicle::update_state(vector<vector<SimplePredictionVehicle>> vehiclePredictions, const bool too_close, vector<double> previous_path_x, vector<double> previous_path_y) {
+
+//  if(this->state != SimplePredictionVehicle::KL && was_lane_change_successful(this->lane, this->d)) {
+//    this->state = KL;
+//    realize_state(vehiclePredictions, too_close);
+//  } else if (this->state == SimplePredictionVehicle::KL)
+//  {
   vector<Vehicle::StateMachineState> states = predict_successor_states(this->state, this->lane);
   
   //state = "KL"; // this is an example of how you change state.
   vector<double> costs;
+  vector<vector<double>> waypoints = {this->map_waypoints_x, this->map_waypoints_y, this->map_waypoints_s, this->map_waypoints_dx, this->map_waypoints_dy};
+//  cout << "current d value: " << this->d << endl;
   for (Vehicle::StateMachineState test_state : states) {
     double cost = 0.0;
     // create copy of our vehicle
-    Vehicle test_v = Vehicle(this-> id, this->lane, this->s, this->d, this->speed);
+    Vehicle test_v = this->copy_vehicle_with(test_state);
     test_v.state = test_state;
-    test_v.realize_state(vehiclePredictions, too_close);
+    vector<vector<double>> path_for_test_v = test_v.calculate_path_depending_on_state(previous_path_x.size(), previous_path_x, previous_path_y);
+    
     // predict one step into future, for selected state
 //    vector<int> test_v_state = test_v.state_at(1);
 //    test_v.generate_predictions();
@@ -239,24 +254,24 @@ void Vehicle::update_state(vector<vector<SimplePredictionVehicle>> vehiclePredic
     double pred_s = test_v.s;
     double pred_d = test_v.d;
     double pred_v = test_v.speed;
-    cout << "pred lane: " << pred_lane << " s: " << pred_s << " d: " << pred_d << " speed: " << pred_v << endl;
-    cout << "tested state: " << test_state << endl;
+//    cout << "pred lane: " << pred_lane << " s: " << pred_s << " d: " << pred_d << " speed: " << pred_v << endl;
+//    cout << "tested state: " << test_state << endl;
     
     // check for collisions
     vector<SimplePredictionVehicle> predictions_to_check = vehiclePredictions[pred_lane];
     for (SimplePredictionVehicle second_vehicle : predictions_to_check)
     {
-      Vehicle::collider collider = will_collide_with(second_vehicle, 100);
-      if(collider.collision)
+      if(will_collide(path_for_test_v, second_vehicle, map_waypoints_s, map_waypoints_x, map_waypoints_y))
       {
-        cout << "coll w/ car: " << second_vehicle.id << ", "
-        << second_vehicle.lane << " " << pred_lane << ", "
-        << second_vehicle.s << " " << pred_s << endl;
+//        cout << "coll w/ car: " << second_vehicle.id << ", "
+//        << second_vehicle.lane << " " << pred_lane << ", "
+//        << second_vehicle.s << " " << pred_s << endl;
         cost += 1000.0;
       }
     }
     
-    cost += this->_max_speed-pred_v;
+    cost += 1*this->_max_speed-pred_v;
+    cost += 10*abs(this->lane-pred_lane);
     //cost += 1*(pred_v-this->target_speed);
     //cost += 1*(pow(3 - pred_lane, 2));
     //cost += 10*(1 - exp(-abs(pred_lane - 3)/(300 - (double)pred_s)));
@@ -264,7 +279,7 @@ void Vehicle::update_state(vector<vector<SimplePredictionVehicle>> vehiclePredic
       cost += 1000.0;
     }
     
-    cout << "cost: " << cost << endl;
+//    cout << "cost: " << cost << endl;
     costs.push_back(cost);
   }
   double min_cost = 99999.0;
@@ -278,40 +293,14 @@ void Vehicle::update_state(vector<vector<SimplePredictionVehicle>> vehiclePredic
     }
   }
   
-  cout << "current state: " << state << ", chosen state: " << states[min_cost_index] << endl;
-  this->state = states[min_cost_index];
-//  this->state = SimplePredictionVehicle::LCL;*/
-  realize_state(vehiclePredictions, too_close);
-  
-}
-
-bool Vehicle::collides_with(SimplePredictionVehicle other, int at_time) {
-  
-  /*
-   Simple collision detection.
-   */
-  int check1 = s_position_at(at_time);
-  int check2 = other.s_position_at(at_time);
-  return (this->lane == other.lane) && (abs(check1-check2) <= 1);
-}
-
-Vehicle::collider Vehicle::will_collide_with(SimplePredictionVehicle other, int timesteps) {
-  
-  Vehicle::collider collider_temp;
-  collider_temp.collision = false;
-  collider_temp.time = -1;
-  
-  for (int t = 0; t < timesteps+1; t++)
+//  cout << "current state: " << state << ", chosen state: " << states[min_cost_index] << endl;
+  if (states[min_cost_index] != this->state)
   {
-    if( collides_with(other, t) )
-    {
-      collider_temp.collision = true;
-      collider_temp.time = t;
-      return collider_temp;
-    }
+    cout << "CHANGING LANE" << endl << endl;
   }
-  
-  return collider_temp;
+  this->state = states[min_cost_index];
+  realize_state(vehiclePredictions, too_close);
+//  }
 }
 
 void Vehicle::realize_state(vector<vector<SimplePredictionVehicle>> vehiclePredictions, bool too_close) {
@@ -342,15 +331,7 @@ void Vehicle::realize_keep_lane(vector<vector<SimplePredictionVehicle>> predicti
 }
 
 void Vehicle::realize_lane_change(vector<vector<SimplePredictionVehicle>> predictions, StateMachineState direction) {
-  int delta = 0;
-  if (direction == LCL && this->lane > 0)
-  {
-    delta = -1;
-  } else if (direction == LCR && this->lane < 2)
-  {
-    delta = 1;
-  }
-  this->lane += delta;
+  this->lane = calculate_lane_after_state_change(direction, this->lane);
   calculateTargetSpeed(predictions, false, this->lane, this->s, this->target_speed);
   adjustSpeedWithoutJerk(this->ref_speed, this->target_speed);
 }
@@ -363,7 +344,15 @@ vector<vector<double>> Vehicle::plan_path(vector<vector<double>> sensor_fusion, 
   {
     this->s = end_path_s;
   }
+  if (this->state != KL)
+  {
+    cout << "changing lane to state: " << this->state << endl;
+    if ((this->lane == 0 && 0.0 < this->d < 2.0) || (this->lane == 1 && 5.0 < this->d < 7.0) || (this->lane == 2 && 9.0 < this->d < 12.0)) {
+      cout << "finished lane change, back to KL" << endl << endl;
+      this->state = KL;
+    }
+  }
   vector<vector<SimplePredictionVehicle>> categorized_vehicles = categorize_vehicles_into_lanes(sensor_fusion, prev_size);
-  update_state(categorized_vehicles, this->_too_close);
+  update_state(categorized_vehicles, this->_too_close, previous_path_x, previous_path_y);
   return calculate_path_depending_on_state(prev_size, previous_path_x, previous_path_y);
 }

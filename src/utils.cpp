@@ -161,3 +161,25 @@ vector<SimplePredictionVehicle::StateMachineState> predict_successor_states(Simp
   }
   return states;
 }
+
+bool will_collide(vector<vector<double>> path_for_test_v, SimplePredictionVehicle second_vehicle, const vector<double> &maps_s, const vector<double> &maps_x, const vector<double> &maps_y)
+{
+  vector<double> ptsx = path_for_test_v[0];
+  vector<double> ptsy = path_for_test_v[1];
+  vector<double> s_values = second_vehicle.generate_predictions(ptsx.size());
+  double d = second_vehicle.d;
+  
+  for(int i = 0; i<ptsx.size(); ++i)
+  {
+    vector<double> xy = getXY(s_values[i], d, maps_s, maps_x, maps_y);
+//    cout << "test_vehicle_x: " << ptsx[i] << ", test_vehicle_y: " << ptsy[i] << endl;
+//    cout << "predicted_vehicle_x: " << xy[0] << ", predicted_vehicle_y: " << xy[1] << endl << endl;
+    if (abs(ptsx[i] - xy[0]) <= 50 && abs(ptsy[i] - xy[1]) <= 50)
+    {
+//      cout << "will collide" << endl;
+      return true;
+    }
+  }
+//  cout << "will NOT collide" << endl;
+  return false;
+}

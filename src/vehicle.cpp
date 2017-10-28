@@ -115,9 +115,9 @@ vector<vector<SimplePredictionVehicle>> Vehicle::categorize_vehicles_into_lanes(
   return {lane_0_detected_vehicles, lane_1_detected_vehicles, lane_2_detected_vehicles};
 }
 
+// Based on Udacity Project Walkthrough and Q&A (https://classroom.udacity.com/nanodegrees/nd013/parts/6047fe34-d93c-4f50-8336-b70ef10cb4b2/modules/27800789-bc8e-4adc-afe0-ec781e82ceae/lessons/23add5c6-7004-47ad-b169-49a5d7b1c1cb/concepts/3bdfeb8c-8dd6-49a7-9d08-beff6703792d)
 vector<vector<double>> Vehicle::calculate_path_depending_on_state(const int prev_size, vector<double> previous_path_x, vector<double> previous_path_y)
 {
-  
   // list of spaced (x,y) points, evenly spaced 30 m
   // will interpolate waypoints with spline
   vector<double> ptsx;
@@ -252,12 +252,8 @@ void Vehicle::calculate_next_best_state(vector<vector<SimplePredictionVehicle>> 
     }
     
     double pred_v = getSpeedOfNearestCarInFront(predictions_to_check, test_v.s, 2*waypoints_distance);
-    
     cost += 2*this->_max_speed-pred_v;
     cost += 3*abs(this->lane-test_v.lane);
-    if (test_v.lane < 0 || test_v.lane > 3) {
-      cost += 1000.0;
-    }
     
     costs.push_back(cost);
   }
@@ -275,11 +271,6 @@ void Vehicle::calculate_next_best_state(vector<vector<SimplePredictionVehicle>> 
 }
 
 void Vehicle::realize_state(vector<vector<SimplePredictionVehicle>> categorized_vehicles_by_lane, bool too_close) {
-  
-  /*
-   Given a state, realize it by adjusting acceleration and lane.
-   Note - lane changes happen instantaneously.
-   */
   Vehicle::StateMachineState state = this->state;
   switch (state) {
     case SimplePredictionVehicle::KL:

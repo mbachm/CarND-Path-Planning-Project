@@ -73,6 +73,7 @@ private:
   // @param ref_speed Current ref_speed
   // @param target_speed Speed to achieve
   static void adjustSpeedWithoutJerk(double &ref_speed, const double target_speed) {
+    // Based on Udacity Project Walkthrough and Q&A (https://classroom.udacity.com/nanodegrees/nd013/parts/6047fe34-d93c-4f50-8336-b70ef10cb4b2/modules/27800789-bc8e-4adc-afe0-ec781e82ceae/lessons/23add5c6-7004-47ad-b169-49a5d7b1c1cb/concepts/3bdfeb8c-8dd6-49a7-9d08-beff6703792d)
     if (ref_speed > target_speed)
     {
       ref_speed -= 0.112;

@@ -11,7 +11,7 @@ The code is divided into 4 classes: Main, Vehicle, SimplePredictionVehicle and U
 1. Main: Needed main class, provided by Udacity. Handles communication with simulator.
 2. SimplePredictionVehicle: Simple model of a vehicle. Can predict future s position and the path, the current lane, the state of the vehicle (see below).
 3. Vehicle: Class where the path planning takes place.
-4. Utils: Serveral helper methods, which didn't fit into other classes.
+4. Utils: Serveral helper methods, which didn't fit into other classes. Most of the provided helper functions (e.g. getFrenet) are here.
 
 ## Reflection on how to generate paths
 ---
@@ -47,7 +47,7 @@ Note that a SimplePredictionVehicle object is generated out of the sensor fusion
 ### Calculate the next best state (lines 231-274 in vehicle.cpp)
 Based on the possible next states a simple cost function defines if the car should change lane or not. For each possible state, the vehicle calculates a path of itself (line 241 in vehicle.cpp). Then, for each detected vehicle in the future lane of the state, the car checks if it will collide with it (lines 245-251 in vehicle.cpp and lines 169-188 in utils.cpp). For each possible collision a value of 1000 is added to the costs.
 
-Afterwards, the car predicts it's future speed (line 253 in vehicle.cpp and lines 36-44 in vehicle.h). The difference between the maximum allowed speed and the predicted speed is added as cost with a factor of 2. If the car will perform a lane change, the number of lanes to change is added with a factor of 3 to the cost. Also, if the car is outside of lane (`d` value smaller than 0 or greater than 12), a cost of 1000 is added. The state with the smallest cost is set as current state.
+Afterwards, the car predicts it's future speed (line 253 in vehicle.cpp and lines 36-44 in vehicle.h). The difference between the maximum allowed speed and the predicted speed is added as cost with a factor of 2. If the car will perform a lane change, the number of lanes to change is added with a factor of 3 to the cost. The state with the smallest cost is set as current state.
 
 ### Calculate path depending on previous calculated state
 Afterwards, the car calculates it's path depending on it's state (function `calculate_path_depending_on_state` lines 118-229 in vehicle.cpp). Note that this function was already used in the previous step. This function was shown in the Udacity [Project Walkthrough and Q&A](https://classroom.udacity.com/nanodegrees/nd013/parts/6047fe34-d93c-4f50-8336-b70ef10cb4b2/modules/27800789-bc8e-4adc-afe0-ec781e82ceae/lessons/23add5c6-7004-47ad-b169-49a5d7b1c1cb/concepts/3bdfeb8c-8dd6-49a7-9d08-beff6703792d) lecture, but I will briefly explain it.

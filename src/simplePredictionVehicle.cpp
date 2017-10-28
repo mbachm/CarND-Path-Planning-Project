@@ -8,6 +8,8 @@
 #include "simplePredictionVehicle.h"
 #include "utils.h"
 
+constexpr double SimplePredictionVehicle::_simulator_time_step;
+
 SimplePredictionVehicle::SimplePredictionVehicle(int id, double s, double d, double speed)
 {
   this->id = id;
@@ -43,7 +45,7 @@ vector<double> SimplePredictionVehicle::generate_predictions(int horizon)
   
   for(int i = 0; i < horizon; i++)
   {
-    predictions.push_back(s_position_at(i * 0.02));
+    predictions.push_back(s_position_at(i * _simulator_time_step));
   }
   
   return predictions;
@@ -53,7 +55,7 @@ void SimplePredictionVehicle::predict_current_state(double x, double y, double v
 {
   vector<double> frenetOld = getFrenet(x, y, car_yaw, map_waypoints_x, map_waypoints_y);
   //Predict 20 timesteps into the future
-  double c = 20 * 0.02;
+  double c = 20 * _simulator_time_step;
   double futureX = x + c * vx;
   double futureY = y + c * vy;
   vector<double> frenetNew = getFrenet(futureX, futureY, car_yaw, map_waypoints_x, map_waypoints_y);

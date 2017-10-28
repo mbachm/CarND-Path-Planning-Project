@@ -228,7 +228,7 @@ vector<vector<double>> Vehicle::calculate_path_depending_on_state(const int prev
   return {next_x_vals, next_y_vals};
 }
 
-void Vehicle::update_state(vector<vector<SimplePredictionVehicle>> vehiclePredictions, const bool too_close, vector<double> previous_path_x, vector<double> previous_path_y) {
+void Vehicle::calculate_next_best_state(vector<vector<SimplePredictionVehicle>> categorized_vehicles_by_lane, const bool too_close, vector<double> previous_path_x, vector<double> previous_path_y) {
   vector<Vehicle::StateMachineState> states = predict_successor_states(this->state, this->lane);
   
   vector<double> costs;
@@ -241,7 +241,7 @@ void Vehicle::update_state(vector<vector<SimplePredictionVehicle>> vehiclePredic
     vector<vector<double>> path_for_test_v = test_v.calculate_path_depending_on_state(previous_path_x.size(), previous_path_x, previous_path_y);
     
     // check for collisions
-    vector<SimplePredictionVehicle> predictions_to_check = vehiclePredictions[test_v.lane];
+    vector<SimplePredictionVehicle> predictions_to_check = categorized_vehicles_by_lane[test_v.lane];
     for (SimplePredictionVehicle second_vehicle : predictions_to_check)
     {
       if(will_collide(path_for_test_v, test_v.speed, test_v.s, second_vehicle, map_waypoints_s, map_waypoints_x, map_waypoints_y))
@@ -270,10 +270,10 @@ void Vehicle::update_state(vector<vector<SimplePredictionVehicle>> vehiclePredic
   }
 
   this->state = states[min_cost_index];
-  realize_state(vehiclePredictions, too_close);
+  realize_state(categorized_vehicles_by_lane, too_close);
 }
 
-void Vehicle::realize_state(vector<vector<SimplePredictionVehicle>> vehiclePredictions, bool too_close) {
+void Vehicle::realize_state(vector<vector<SimplePredictionVehicle>> categorized_vehicles_by_lane, bool too_close) {
   
   /*
    Given a state, realize it by adjusting acceleration and lane.
@@ -282,25 +282,25 @@ void Vehicle::realize_state(vector<vector<SimplePredictionVehicle>> vehiclePredi
   Vehicle::StateMachineState state = this->state;
   switch (state) {
     case SimplePredictionVehicle::KL:
-      realize_keep_lane(vehiclePredictions, too_close);
+      realize_keep_lane(categorized_vehicles_by_lane, too_close);
       break;
     case SimplePredictionVehicle::LCL:
-      realize_lane_change(vehiclePredictions, LCL);
+      realize_lane_change(categorized_vehicles_by_lane, LCL);
       break;
     case SimplePredictionVehicle::LCR:
-      realize_lane_change(vehiclePredictions, LCR);
+      realize_lane_change(categorized_vehicles_by_lane, LCR);
       break;
   }
 }
 
-void Vehicle::realize_keep_lane(vector<vector<SimplePredictionVehicle>> predictions, bool too_close) {
-  calculateTargetSpeed(predictions, too_close, this->lane, this->s, this->target_speed);
+void Vehicle::realize_keep_lane(vector<vector<SimplePredictionVehicle>> categorized_vehicles_by_lane, bool too_close) {
+  calculateTargetSpeed(categorized_vehicles_by_lane, too_close, this->lane, this->s, this->target_speed);
   adjustSpeedWithoutJerk(this->ref_speed, this->target_speed);
 }
 
-void Vehicle::realize_lane_change(vector<vector<SimplePredictionVehicle>> predictions, StateMachineState direction) {
+void Vehicle::realize_lane_change(vector<vector<SimplePredictionVehicle>> categorized_vehicles_by_lane, StateMachineState direction) {
   this->lane = calculate_lane_after_state_change(direction, this->lane);
-  calculateTargetSpeed(predictions, false, this->lane, this->s, this->target_speed);
+  calculateTargetSpeed(categorized_vehicles_by_lane, false, this->lane, this->s, this->target_speed);
   adjustSpeedWithoutJerk(this->ref_speed, this->target_speed);
 }
 
@@ -318,7 +318,7 @@ vector<vector<double>> Vehicle::plan_path(vector<vector<double>> sensor_fusion, 
       this->state = KL;
     }
   }
-  vector<vector<SimplePredictionVehicle>> categorized_vehicles = categorize_vehicles_into_lanes(sensor_fusion, prev_size);
-  update_state(categorized_vehicles, this->_too_close, previous_path_x, previous_path_y);
+  vector<vector<SimplePredictionVehicle>> categorized_vehicles_by_lane = categorize_vehicles_into_lanes(sensor_fusion, prev_size);
+  calculate_next_best_state(categorized_vehicles_by_lane, this->_too_close, previous_path_x, previous_path_y);
   return calculate_path_depending_on_state(prev_size, previous_path_x, previous_path_y);
 }

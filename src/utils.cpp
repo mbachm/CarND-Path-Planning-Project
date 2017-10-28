@@ -56,7 +56,6 @@ int NextWaypoint(double x, double y, double theta, const vector<double> &maps_x,
   }
   
   return closestWaypoint;
-  
 }
 
 // Transform from Cartesian x,y coordinates to Frenet s,d coordinates
@@ -162,6 +161,7 @@ vector<SimplePredictionVehicle::StateMachineState> predict_successor_states(Simp
   return states;
 }
 
+// Check if it is save to change lane with the other vehicle behind us in other lane or not
 static bool vehicle_is_far_enough_behind_and_slower(int current_s, double current_speed, const SimplePredictionVehicle &second_vehicle) {
   return second_vehicle.s + 30.0 < current_s  && second_vehicle.speed < current_speed && 5.0 < current_speed - second_vehicle.speed;
 }

@@ -1,8 +1,8 @@
 //
-//  helper.h
+//  utils.h
 //  path_planning
 //
-//  Created by Bachmann, Michael (415) on 18.10.17.
+//  Created by Bachmann, Michael on 18.10.17.
 //
 
 #ifndef utils_h
@@ -31,7 +31,6 @@ static int calculate_lane_after_state_change(SimplePredictionVehicle::StateMachi
   {
     delta = 1;
   }
-//  cout << "calculate delta: " << delta << ", target lane: " << lane + delta << endl;
   return lane + delta;
 }
 
@@ -47,6 +46,6 @@ vector<double> getXY(double s, double d, const vector<double> &maps_s, const vec
 
 vector<SimplePredictionVehicle::StateMachineState> predict_successor_states(SimplePredictionVehicle::StateMachineState currentState, const int lane);
 
-bool will_collide(vector<vector<double>> path_for_test_v, SimplePredictionVehicle second_vehicle, const vector<double> &maps_s, const vector<double> &maps_x, const vector<double> &maps_y);
+bool will_collide(vector<vector<double>> path_for_test_v, const double current_speed, const int current_s, SimplePredictionVehicle second_vehicle, const vector<double> &maps_s, const vector<double> &maps_x, const vector<double> &maps_y);
 
 #endif /* utils_h */

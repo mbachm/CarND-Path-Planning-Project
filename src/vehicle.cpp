@@ -2,7 +2,7 @@
 //  vehicle.cpp
 //  path_planning
 //
-//  Created by Bachmann, Michael (415) on 21.10.17.
+//  Created by Bachmann, Michael on 21.10.17.
 //
 
 #include <iostream>
@@ -16,6 +16,7 @@
 #include <iterator>
 
 constexpr double Vehicle::_max_speed;
+constexpr int Vehicle::waypoints_distance;
 
 /**
  * Initializes Vehicle
@@ -68,7 +69,7 @@ vector<vector<SimplePredictionVehicle>> Vehicle::categorize_vehicles_into_lanes(
   {
     double s = sensor_fusion[i][5];
     double d = sensor_fusion[i][6];
-    if ((d < 0.0) && !(-20.0 < s - this->s < 100.0))
+    if ((d < 0.0) && !(-15.0 < s - this->s < ((double)3*waypoints_distance)))
     {
       //ignore vehicles on other side of road and vehicle that are too far behind/away
       continue;
@@ -155,10 +156,10 @@ vector<vector<double>> Vehicle::calculate_path_depending_on_state(const int prev
     ptsy.push_back(ref_y);
   }
   
-  // Add 30m evenly waypoints in Frenet
-  vector<double> next_wp0 = getXY(this->s+30, (2+4*this->lane),map_waypoints_s, map_waypoints_x, map_waypoints_y);
-  vector<double> next_wp1 = getXY(this->s+60, (2+4*this->lane),map_waypoints_s, map_waypoints_x, map_waypoints_y);
-  vector<double> next_wp2 = getXY(this->s+90, (2+4*this->lane),map_waypoints_s, map_waypoints_x, map_waypoints_y);
+  // Add evenly waypoints in Frenet
+  vector<double> next_wp0 = getXY(this->s+waypoints_distance, (2+4*this->lane),map_waypoints_s, map_waypoints_x, map_waypoints_y);
+  vector<double> next_wp1 = getXY(this->s+2*waypoints_distance, (2+4*this->lane),map_waypoints_s, map_waypoints_x, map_waypoints_y);
+  vector<double> next_wp2 = getXY(this->s+3*waypoints_distance, (2+4*this->lane),map_waypoints_s, map_waypoints_x, map_waypoints_y);
   
   ptsx.push_back(next_wp0[0]);
   ptsx.push_back(next_wp1[0]);
@@ -203,7 +204,7 @@ vector<vector<double>> Vehicle::calculate_path_depending_on_state(const int prev
   double x_add_on = 0;
   
   //fill up the rest of our path planner
-  for (int i = 1; i <= 50-prev_size; i++)
+  for (int i = 1; i <= 30-prev_size; i++)
   {
     double N = (target_dist/(0.02*this->ref_speed/2.24));
     double x_point = x_add_on+(target_x)/N;
@@ -228,18 +229,10 @@ vector<vector<double>> Vehicle::calculate_path_depending_on_state(const int prev
 }
 
 void Vehicle::update_state(vector<vector<SimplePredictionVehicle>> vehiclePredictions, const bool too_close, vector<double> previous_path_x, vector<double> previous_path_y) {
-
-//  if(this->state != SimplePredictionVehicle::KL && was_lane_change_successful(this->lane, this->d)) {
-//    this->state = KL;
-//    realize_state(vehiclePredictions, too_close);
-//  } else if (this->state == SimplePredictionVehicle::KL)
-//  {
   vector<Vehicle::StateMachineState> states = predict_successor_states(this->state, this->lane);
   
-  //state = "KL"; // this is an example of how you change state.
   vector<double> costs;
   vector<vector<double>> waypoints = {this->map_waypoints_x, this->map_waypoints_y, this->map_waypoints_s, this->map_waypoints_dx, this->map_waypoints_dy};
-//  cout << "current d value: " << this->d << endl;
   for (Vehicle::StateMachineState test_state : states) {
     double cost = 0.0;
     // create copy of our vehicle
@@ -247,60 +240,37 @@ void Vehicle::update_state(vector<vector<SimplePredictionVehicle>> vehiclePredic
     test_v.state = test_state;
     vector<vector<double>> path_for_test_v = test_v.calculate_path_depending_on_state(previous_path_x.size(), previous_path_x, previous_path_y);
     
-    // predict one step into future, for selected state
-//    vector<int> test_v_state = test_v.state_at(1);
-//    test_v.generate_predictions();
-    int pred_lane = test_v.lane;
-    double pred_s = test_v.s;
-    double pred_d = test_v.d;
-    double pred_v = test_v.speed;
-//    cout << "pred lane: " << pred_lane << " s: " << pred_s << " d: " << pred_d << " speed: " << pred_v << endl;
-//    cout << "tested state: " << test_state << endl;
-    
     // check for collisions
-    vector<SimplePredictionVehicle> predictions_to_check = vehiclePredictions[pred_lane];
+    vector<SimplePredictionVehicle> predictions_to_check = vehiclePredictions[test_v.lane];
     for (SimplePredictionVehicle second_vehicle : predictions_to_check)
     {
-      if(will_collide(path_for_test_v, second_vehicle, map_waypoints_s, map_waypoints_x, map_waypoints_y))
+      if(will_collide(path_for_test_v, test_v.speed, test_v.s, second_vehicle, map_waypoints_s, map_waypoints_x, map_waypoints_y))
       {
-//        cout << "coll w/ car: " << second_vehicle.id << ", "
-//        << second_vehicle.lane << " " << pred_lane << ", "
-//        << second_vehicle.s << " " << pred_s << endl;
         cost += 1000.0;
       }
     }
     
-    cost += 1*this->_max_speed-pred_v;
-    cost += 10*abs(this->lane-pred_lane);
-    //cost += 1*(pred_v-this->target_speed);
-    //cost += 1*(pow(3 - pred_lane, 2));
-    //cost += 10*(1 - exp(-abs(pred_lane - 3)/(300 - (double)pred_s)));
-    if (pred_lane < 0 || pred_lane > 3) {
+    double pred_v = getSpeedOfNearestCarInFront(predictions_to_check, test_v.s, 2*waypoints_distance);
+    
+    cost += 2*this->_max_speed-pred_v;
+    cost += 3*abs(this->lane-test_v.lane);
+    if (test_v.lane < 0 || test_v.lane > 3) {
       cost += 1000.0;
     }
     
-//    cout << "cost: " << cost << endl;
     costs.push_back(cost);
   }
   double min_cost = 99999.0;
   int min_cost_index = 0;
   for (int i = 0; i < costs.size(); i++) {
-    //cout << "cost[" << i << "]: " << costs[i] << endl;
     if (costs[i] < min_cost) {
       min_cost = costs[i];
       min_cost_index = i;
-
     }
   }
-  
-//  cout << "current state: " << state << ", chosen state: " << states[min_cost_index] << endl;
-  if (states[min_cost_index] != this->state)
-  {
-    cout << "CHANGING LANE" << endl << endl;
-  }
+
   this->state = states[min_cost_index];
   realize_state(vehiclePredictions, too_close);
-//  }
 }
 
 void Vehicle::realize_state(vector<vector<SimplePredictionVehicle>> vehiclePredictions, bool too_close) {
@@ -316,11 +286,9 @@ void Vehicle::realize_state(vector<vector<SimplePredictionVehicle>> vehiclePredi
       break;
     case SimplePredictionVehicle::LCL:
       realize_lane_change(vehiclePredictions, LCL);
-      //TODO: change lane to left
       break;
     case SimplePredictionVehicle::LCR:
       realize_lane_change(vehiclePredictions, LCR);
-      //TODO: change lane to right
       break;
   }
 }
@@ -346,9 +314,7 @@ vector<vector<double>> Vehicle::plan_path(vector<vector<double>> sensor_fusion, 
   }
   if (this->state != KL)
   {
-    cout << "changing lane to state: " << this->state << endl;
-    if ((this->lane == 0 && 0.0 < this->d < 2.0) || (this->lane == 1 && 5.0 < this->d < 7.0) || (this->lane == 2 && 9.0 < this->d < 12.0)) {
-      cout << "finished lane change, back to KL" << endl << endl;
+    if ((this->lane == 0 && 0.0 < this->d < 3.0) || (this->lane == 1 && 5.0 < this->d < 7.0) || (this->lane == 2 && 9.0 < this->d < 12.0)) {
       this->state = KL;
     }
   }

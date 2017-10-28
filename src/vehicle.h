@@ -1,8 +1,8 @@
 //
-//  vehicle.hpp
+//  vehicle.h
 //  path_planning
 //
-//  Created by Bachmann, Michael (415) on 21.10.17.
+//  Created by Bachmann, Michael on 21.10.17.
 //
 
 #ifndef vehicle_h
@@ -26,35 +26,31 @@ private:
   static constexpr double _max_speed = 49.5; //mph
   bool _too_close;
 
-  static void getSpeedOfNearestCarInFront(vector<SimplePredictionVehicle> &detected_vehicles, const double s, double &target_speed) {
+  static double getSpeedOfNearestCarInFront(vector<SimplePredictionVehicle> &detected_vehicles, const double s, const double distance_to_check = 20.0) {
     sort(detected_vehicles.begin(), detected_vehicles.end(), SimplePredictionVehicle::sort_by_s_distance);
     for (SimplePredictionVehicle vehicle : detected_vehicles) {
-      if (s < vehicle.s)
+      if (s < vehicle.s && abs(s - vehicle.s) < distance_to_check)
       {
-        target_speed = vehicle.speed;
-        break;
+        return vehicle.speed + 5.0;
       }
     }
+    return _max_speed;
   }
   
   static void calculateTargetSpeed(vector<vector<SimplePredictionVehicle>> &cars_in_lanes, bool too_close, const int lane, const double s, double &target_speed) {
     if (lane == 0 && cars_in_lanes[0].size() > 0 && too_close)
     {
-      //            cout << "reducing speed due to lane 0" << endl << endl;
-      getSpeedOfNearestCarInFront(cars_in_lanes[0], s, target_speed);
+      target_speed = getSpeedOfNearestCarInFront(cars_in_lanes[0], s);
     }
     else if (lane == 1 && cars_in_lanes[1].size() > 0 && too_close)
     {
-      //            cout << "reducing speed due to lane 1" << endl << endl;
-      getSpeedOfNearestCarInFront(cars_in_lanes[1], s, target_speed);
+      target_speed = getSpeedOfNearestCarInFront(cars_in_lanes[1], s);
     }
     else if (cars_in_lanes[2].size() > 0 && too_close)
     {
-      //            cout << "reducing speed due to lane 2" << endl << endl;
-      getSpeedOfNearestCarInFront(cars_in_lanes[2], s, target_speed);
+      target_speed = getSpeedOfNearestCarInFront(cars_in_lanes[2], s);
     } else
     {
-      //            cout << "set target speed to max speed" << endl << endl;
       target_speed = _max_speed;
     }
   }
@@ -81,7 +77,7 @@ private:
   void realize_lane_change(vector<vector<SimplePredictionVehicle>> predictions, StateMachineState direction);
   
 public:
-  
+  static constexpr int waypoints_distance = 30;
   double x;
   double y;
   double yaw;
@@ -110,7 +106,6 @@ public:
   
   Vehicle copy_vehicle_with(SimplePredictionVehicle::StateMachineState new_state);
 
-  
   /**
    *
    */

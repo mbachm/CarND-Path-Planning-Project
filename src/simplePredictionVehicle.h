@@ -1,8 +1,8 @@
 //
-//  SimplePredictionVehicle.hpp
+//  SimplePredictionVehicle.h
 //  path_planning
 //
-//  Created by Bachmann, Michael (415) on 21.10.17.
+//  Created by Bachmann, Michael on 21.10.17.
 //
 
 #ifndef simplePredictionVehicle_h

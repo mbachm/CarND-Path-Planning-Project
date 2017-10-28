@@ -2,7 +2,7 @@
 //  SimplePredictionVehicle.cpp
 //  path_planning
 //
-//  Created by Bachmann, Michael (415) on 21.10.17.
+//  Created by Bachmann, Michael on 21.10.17.
 //
 
 #include "simplePredictionVehicle.h"
@@ -68,6 +68,4 @@ void SimplePredictionVehicle::predict_current_state(double x, double y, double v
   {
     this->predictedState = KL;
   }
-//  Debug
-//  std::cout << "State for vehicle with id: "<< this->id << ", state: "<<this->predictedState << std::endl << std::endl;
 }

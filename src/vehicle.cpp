@@ -118,7 +118,7 @@ vector<vector<SimplePredictionVehicle>> Vehicle::categorize_vehicles_into_lanes(
 vector<vector<double>> Vehicle::calculate_path_depending_on_state(const int prev_size, vector<double> previous_path_x, vector<double> previous_path_y)
 {
   
-  // list of spaced (x,y) ponts, evenly spaced 30 m
+  // list of spaced (x,y) points, evenly spaced 30 m
   // will interpolate waypoints with spline
   vector<double> ptsx;
   vector<double> ptsy;
@@ -196,7 +196,7 @@ vector<vector<double>> Vehicle::calculate_path_depending_on_state(const int prev
     next_y_vals.push_back(previous_path_y[i]);
   }
   
-  //Calculate how to break up spline points so thate we travel at our desired reference velocity // N * 0.02 * velocity = d, N = number of points
+  //Calculate how to break up spline points so thate we travel at our desired reference velocity
   double target_x = 30.0; //horizon point
   double target_y = spline(target_x);
   double target_dist = sqrt((target_x)*(target_x)+(target_y)*(target_y));
@@ -206,6 +206,7 @@ vector<vector<double>> Vehicle::calculate_path_depending_on_state(const int prev
   //fill up the rest of our path planner
   for (int i = 1; i <= 30-prev_size; i++)
   {
+    // N * 0.02 * velocity = d, N = number of points
     double N = (target_dist/(0.02*this->ref_speed/2.24));
     double x_point = x_add_on+(target_x)/N;
     double y_point = spline(x_point);

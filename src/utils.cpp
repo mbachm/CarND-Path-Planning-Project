@@ -1,8 +1,8 @@
 //
-//  helper.cpp
+//  utils.cpp
 //  path_planning
 //
-//  Created by Bachmann, Michael (415) on 18.10.17.
+//  Created by Bachmann, Michael on 18.10.17.
 //
 
 #include "utils.h"
@@ -56,7 +56,6 @@ int NextWaypoint(double x, double y, double theta, const vector<double> &maps_x,
   }
   
   return closestWaypoint;
-  
 }
 
 // Transform from Cartesian x,y coordinates to Frenet s,d coordinates
@@ -133,5 +132,57 @@ vector<double> getXY(double s, double d, const vector<double> &maps_s, const vec
   double y = seg_y + d*sin(perp_heading);
   
   return {x,y};
+}
+
+vector<SimplePredictionVehicle::StateMachineState> predict_successor_states(SimplePredictionVehicle::StateMachineState currentState, const int lane)
+{
+  vector<SimplePredictionVehicle::StateMachineState> states;
   
+  switch (currentState) {
+    case SimplePredictionVehicle::KL:
+      states.push_back(SimplePredictionVehicle::KL);
+      if (lane != 0)
+      {
+        states.push_back(SimplePredictionVehicle::LCL);
+      }
+      if (lane != 2)
+      {
+        states.push_back(SimplePredictionVehicle::LCR);
+      }
+      break;
+    case SimplePredictionVehicle::LCL:
+      states.push_back(SimplePredictionVehicle::LCL);
+      states.push_back(SimplePredictionVehicle::KL);
+      break;
+    case SimplePredictionVehicle::LCR:
+      states.push_back(SimplePredictionVehicle::LCR);
+      states.push_back(SimplePredictionVehicle::KL);
+  }
+  return states;
+}
+
+// Check if it is save to change lane with the other vehicle behind us in other lane or not
+static bool vehicle_is_far_enough_behind_and_slower(int current_s, double current_speed, const SimplePredictionVehicle &second_vehicle) {
+  return second_vehicle.s + 30.0 < current_s  && second_vehicle.speed < current_speed && 5.0 < current_speed - second_vehicle.speed;
+}
+
+bool will_collide(vector<vector<double>> path_for_test_v, const double current_speed, const int current_s, SimplePredictionVehicle second_vehicle, const vector<double> &maps_s, const vector<double> &maps_x, const vector<double> &maps_y)
+{
+  vector<double> ptsx = path_for_test_v[0];
+  vector<double> ptsy = path_for_test_v[1];
+  vector<double> s_values = second_vehicle.generate_predictions(ptsx.size());
+  double d = second_vehicle.d;
+  
+  for(int i = 0; i<ptsx.size(); ++i)
+  {
+    vector<double> xy = getXY(s_values[i], d, maps_s, maps_x, maps_y);
+    if (abs(ptsx[i] - xy[0]) <= 20.0 && abs(ptsy[i] - xy[1]) <= 20.0)
+    {
+      if(vehicle_is_far_enough_behind_and_slower(current_s, current_speed, second_vehicle)) {
+        return false;
+      }
+      return true;
+    }
+  }
+  return false;
 }

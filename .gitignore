@@ -10,3 +10,7 @@ project.xcworkspace/
 DerivedData/
 *.xccheckout
 xcuserdata/
+.idea/
+Makefile
+Path_Planning.cbp
+build/

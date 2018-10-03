@@ -3,7 +3,7 @@ Self-Driving Car Engineer Nanodegree Program
 
 ## Overview
 ---
-This is my implementation of project 1 of term 3 of the Udacity - Self-Driving Car NanoDegree . You can find the original repo under [CarND-Path-Planning-Project](https://github.com/udacity/CarND-Path-Planning-Project).
+This is my implementation of project 1 of term 3 of the Udacity - Self-Driving Car Nanodegree . You can find the original repo under [CarND-Path-Planning-Project](https://github.com/udacity/CarND-Path-Planning-Project).
 
 ## Code overview
 ---
@@ -11,7 +11,7 @@ The code is divided into 4 classes: Main, Vehicle, SimplePredictionVehicle and U
 1. Main: Needed main class, provided by Udacity. Handles communication with simulator.
 2. SimplePredictionVehicle: Simple model of a vehicle. Can predict future s position and the path, the current lane, the state of the vehicle (see below).
 3. Vehicle: Class where the path planning takes place.
-4. Utils: Serveral helper methods, which didn't fit into other classes. Most of the provided helper functions (e.g. getFrenet) are here.
+4. Utils: Several helper methods, which didn't fit into other classes. Most of the provided helper functions (e.g. getFrenet) are here.
 
 ## Reflection on how to generate paths
 ---
@@ -52,9 +52,9 @@ Afterwards, the car predicts it's future speed (line 253 in vehicle.cpp and line
 ### Calculate path depending on previous calculated state
 Afterwards, the car calculates it's path depending on it's state (function `calculate_path_depending_on_state` lines 118-229 in vehicle.cpp). Note that this function was already used in the previous step. This function was shown in the Udacity [Project Walkthrough and Q&A](https://classroom.udacity.com/nanodegrees/nd013/parts/6047fe34-d93c-4f50-8336-b70ef10cb4b2/modules/27800789-bc8e-4adc-afe0-ec781e82ceae/lessons/23add5c6-7004-47ad-b169-49a5d7b1c1cb/concepts/3bdfeb8c-8dd6-49a7-9d08-beff6703792d) lecture, but I will briefly explain it.
 
-First, the cars current x, y and yaw are safed as reference points (lines 127-129 in vehicle.cpp). If previous path is empty then we use the currenct location as starting reference (lines 132-141 in vehicle.cpp). Otherwise redefine reference state as previous path and points (lines 143-157 in vehicle.cpp). Next, evenly split waypoints with a distance of 30 m (lines 160-163 in vehicle.cpp). All these points are saved in a vector of spaced (x,y) points and transformed to local car coordinates (lines 172-181). The waypoints are afterwarss interpolated with spline (line 187).
+First, the cars current x, y and yaw are safed as reference points (lines 127-129 in vehicle.cpp). If previous path is empty then we use the current location as starting reference (lines 132-141 in vehicle.cpp). Otherwise redefine reference state as previous path and points (lines 143-157 in vehicle.cpp). Next, evenly split waypoints with a distance of 30 m (lines 160-163 in vehicle.cpp). All these points are saved in a vector of spaced (x,y) points and transformed to local car coordinates (lines 172-181). The waypoints are afterwards interpolated with spline (line 187).
 
-The previously calculated and already send to the simulator waypoints are then added to our next path to avoid jerks and rapid path changes (lines 193-197). Then we calculate how to break up spline points so thate we travel at our desired reference velocity and the rest of our path is filled up (lines 200-228 in vehicle.cpp). Part of this process is to rotate the path point back to global (x,y) variables (line 220, 221). The number of points in our path is set to 30 (line 207, for-loop).
+The previously calculated and already send to the simulator waypoints are then added to our next path to avoid jerks and rapid path changes (lines 193-197). Then we calculate how to break up spline points so that we travel at our desired reference velocity and the rest of our path is filled up (lines 200-228 in vehicle.cpp). Part of this process is to rotate the path point back to global (x,y) variables (line 220, 221). The number of points in our path is set to 30 (line 207, for-loop).
 
 
 ## How to run this project
